@@ -28,7 +28,10 @@
  */
 package org.openhab.io.rest.internal.resources;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -97,10 +100,8 @@ public class ItemConfigResource {
 
 	private static final Pattern LABEL_PATTERN = Pattern
 			.compile("(.*?)\\[(.*)\\]");
-	private static final Pattern FORMAT_PATTERN = Pattern
-			.compile("(?i)MAP\\((.*?)\\):(.*)");
-	private static final Pattern UNIT_PATTERN = Pattern
-			.compile("(%\\.?\\d?[dfsu])(.*)");
+	private static final Pattern MAP_PATTERN = Pattern
+			.compile("(?i)MAP=\\((.*?)\\)(.*)");
 
 	/** The URI path to this resource */
 	public static final String PATH_CONFIG = "config/items";
@@ -247,11 +248,20 @@ public class ItemConfigResource {
 				} else
 					bean.label = item.getLabel();
 
+				Matcher mapMatcher = MAP_PATTERN.matcher(bean.format);
+				if (mapMatcher.matches()) {
+					bean.map = mapMatcher.group(1).trim();
+					bean.format = mapMatcher.group(2).trim();
+				} else
+					bean.format = item.getLabel();
+				
 				if (bean.format != null && bean.format.length() > 0) {
 					String format = bean.format.trim();
 
-					// Split the string according to the "Formatter" format specification
-					// Everything up to the last format string goes in the format
+					// Split the string according to the "Formatter" format
+					// specification
+					// Everything up to the last format string goes in the
+					// format
 					// Everything after goes in the units
 					int state = 0;
 					String s1 = "";
@@ -407,10 +417,100 @@ public class ItemConfigResource {
 
 	// Save an item
 	private ItemConfigBean putItemConfigBean(String itemname,
-			ItemConfigBean item) {
+			ItemConfigBean itemUpdate) {
 
-		// TODO: escape the string using unescapeJava(String str)
+		ModelRepository repo = RESTApplication.getModelRepository();
+		if (repo == null)
+			return null;
 
+		String modelName = itemUpdate.model + ".items";
+		ItemModel items = (ItemModel) repo.getModel(modelName);
+
+		String newName = "configurations/items/" + itemUpdate.model + ".items-out";
+		FileWriter fw = null;
+		try {
+			fw = new FileWriter(newName, false);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		if (fw == null)
+			return null;
+
+		BufferedWriter out = new BufferedWriter(fw);
+
+		try {
+			EList<ModelItem> modelList = items.getItems();
+			for (ModelItem item : modelList) {
+				if (item.getName().equals(itemUpdate.name)) {
+					// Got the item - write the new data
+					out.write(itemUpdate.type.substring(0, itemUpdate.type.indexOf("Item")) + "\t");
+					out.write(itemUpdate.name + "\t");
+					if(itemUpdate.label != null) {
+						out.write("\"" + itemUpdate.label + " [");
+						if(itemUpdate.map != null)
+							out.write("MAP=(" + itemUpdate.map + ") ");
+						out.write(itemUpdate.format + " " + itemUpdate.units + "]\"\t");
+					}
+					if(itemUpdate.icon != null)
+						out.write("<" + itemUpdate.icon + ">\t");
+					if(itemUpdate.groups != null) {
+						out.write("(");
+						boolean first = true;
+						for(String group : itemUpdate.groups) {
+							if(first == false)
+							out.write(",");
+							out.write(group);
+							first = false;
+						}
+						out.write(")\t");
+					}
+					if(itemUpdate.bindings != null) {
+						out.write("{ heatmiser=\"");
+						for(String binding : itemUpdate.bindings)
+							out.write(binding);
+						out.write("\" }");
+					}
+					out.write("\r\n");
+				} else {
+					// Write out the old data
+					if(item.getType() == null)
+						out.write("Group\t");
+					else
+						out.write(item.getType() + "\t");
+					out.write(item.getName() + "\t");
+					if(item.getLabel() != null)
+						out.write("\"" + item.getLabel() +"\"\t");
+					if(item.getIcon() != null)
+						out.write("<" + item.getIcon() + ">\t");
+					if(item.getGroups() != null) {
+						out.write("(");
+						boolean first = true;
+						for(String group : item.getGroups()) {
+							if(first == false)
+								out.write(",");
+							out.write(group);
+							first = false;
+						}
+						out.write(")\t");
+					}
+					if(item.getBindings().size() != 0) {
+						out.write("{ heatmiser=\"");
+						for(ModelBinding binding : item.getBindings())
+							out.write(binding.getConfiguration());
+						out.write("\" }");
+					}
+					out.write("\r\n");
+				}
+			}
+			out.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		
 		return getItemConfigBean(itemname);
 	}
 
