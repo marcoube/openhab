@@ -7,3 +7,4 @@ bundles/io/org.openhab.io.multimedia.tts.marytts/lib/
 .metadata/
 distribution/openhabhome/
 */plugin.xml_gen
+/.project

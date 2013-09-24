@@ -40,8 +40,14 @@ import org.atmosphere.cpr.AtmosphereServlet;
 import org.openhab.core.events.EventPublisher;
 import org.openhab.core.items.ItemRegistry;
 import org.openhab.io.net.http.SecureHttpContext;
+import org.openhab.io.rest.internal.resources.BindingConfigResource;
+import org.openhab.io.rest.internal.resources.BundleResource;
+import org.openhab.io.rest.internal.resources.HistoryResource;
+import org.openhab.io.rest.internal.resources.ItemConfigResource;
+import org.openhab.io.rest.internal.resources.ItemIconResource;
 import org.openhab.io.rest.internal.resources.ItemResource;
 import org.openhab.io.rest.internal.resources.RootResource;
+import org.openhab.io.rest.internal.resources.SitemapConfigResource;
 import org.openhab.io.rest.internal.resources.SitemapResource;
 import org.openhab.io.servicediscovery.DiscoveryService;
 import org.openhab.io.servicediscovery.ServiceDescription;
@@ -196,6 +202,15 @@ public class RESTApplication extends Application {
         result.add(RootResource.class);
         result.add(ItemResource.class);
         result.add(SitemapResource.class);
+        
+        // HABmin Extensions! (Chris Jackson)
+        result.add(HistoryResource.class);
+        result.add(BundleResource.class);
+        result.add(BindingConfigResource.class);
+        result.add(ItemConfigResource.class);
+        result.add(SitemapConfigResource.class);
+        result.add(ItemIconResource.class);
+        
         return result;
     }
 
