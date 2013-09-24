@@ -50,7 +50,8 @@ Bundle-ClassPath: .,
  lib/atmosphere-compat-tomcat-1.0.4.jar,
  lib/atmosphere-compat-tomcat7-1.0.4.jar,
  lib/atmosphere-jersey-1.0.4.jar,
- lib/atmosphere-runtime-1.0.4.jar
+ lib/atmosphere-runtime-1.0.4.jar,
+ lib/joda-time-2.1.jar
 Bundle-ActivationPolicy: lazy
 Bundle-Activator: org.openhab.io.rest.internal.RESTActivator
 Service-Component: OSGI-INF/restapplication.xml

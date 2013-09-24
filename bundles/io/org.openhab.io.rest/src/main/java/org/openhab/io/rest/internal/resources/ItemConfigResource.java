@@ -248,33 +248,52 @@ public class ItemConfigResource {
 					bean.label = item.getLabel();
 
 				if (bean.format != null && bean.format.length() > 0) {
-					// unescape the format string
 					String format = bean.format.trim();
-					format = StringEscapeUtils.unescapeJava(format);
 
-					int posFormatEnd = 0;
-					int posUnitStart = 0;
-					int cnt = 0;
+					// Split the string according to the "Formatter" format specification
+					// Everything up to the last format string goes in the format
+					// Everything after goes in the units
+					int state = 0;
+					String s1 = "";
+					String s2 = "";
+					final String conversions = "bBhHsScCdoxXeEfgGaAtT%n";
 					for (char ch : format.toCharArray()) {
-						if(posFormatEnd == 0) {
-							if(ch == ' ')
-								posFormatEnd = cnt;
+						switch (state) {
+						case 0:
+							// Looking for start
+							s2 += ch;
+							if (ch == '%') {
+								state = 1;
+							}
+							break;
+						case 1:
+							// Looking for end (conversion id)
+							s2 += ch;
+							if (ch == '%') {
+								// %% is not considered part of the format -
+								// it's the "unit"
+								state = 0;
+							} else if (conversions.indexOf(ch) != -1) {
+								// This is a valid conversion ID
+								s1 += s2;
+								s2 = "";
+								state = 0;
+
+								// Is this a time format?
+								if (ch == 't' || ch == 'T')
+									state = 2;
+							}
+							break;
+						case 2:
+							// One more character for time conversion
+							s1 += ch;
+							state = 0;
+							break;
 						}
-						if(posUnitStart == 0) {
-							if(ch == '%')
-								posFormatEnd = 0;
-							else if (ch != ' ')
-								posUnitStart = cnt;
-						}
-							
-						cnt++;
 					}
 
-					bean.units = format.substring(posUnitStart);
-					bean.units.trim();
-
-					bean.format = format.substring(0, posFormatEnd);
-					bean.format.trim();
+					bean.format = s1.trim();
+					bean.units = s2.trim();
 				}
 			}
 
