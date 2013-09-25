@@ -321,8 +321,10 @@ public class SitemapConfigResource {
 				out.write(indent + child.type + " ");
 				if (child.item != null && !child.item.isEmpty())
 					out.write("item=" + child.item + " ");
-				if (child.label != null && !child.label.isEmpty())
-					out.write("label=\"" + child.label + "\" ");
+				if (child.label != null && !child.label.isEmpty()) {
+					LabelSplitHelper label = new LabelSplitHelper(child.label, child.format, child.units, child.map);
+					out.write("label=\"" + label.getLabelString() + "\" ");
+				}
 				if (child.icon != null && !child.icon.isEmpty())
 					out.write("icon=\"" + child.icon + "\" ");
 
@@ -431,16 +433,23 @@ public class SitemapConfigResource {
 			}
 		}
 		bean.icon = widget.getIcon();
-		bean.label = widget.getLabel();
+		
+		// Split the label into its constituent parts
+		if(widget.getLabel() != null) {
+			LabelSplitHelper label = new LabelSplitHelper(widget.getLabel()); 
+			bean.label = label.getLabel();
+			bean.format = label.getFormat();
+			bean.units = label.getUnit();
+			bean.map = label.getMapping();
+		}
+
 		bean.type = widget.eClass().getName();
 		if (widget instanceof LinkableWidget) {
 			LinkableWidget linkableWidget = (LinkableWidget) widget;
 			EList<Widget> children = itemUIRegistry.getChildren(linkableWidget);
 			for (Widget child : children) {
-				bean.widgets.add(createWidgetBean(sitemapName, child, uri));// ,
-																			// widgetId));
+				bean.widgets.add(createWidgetBean(sitemapName, child, uri));
 			}
-
 		}
 		if (widget instanceof Switch) {
 			Switch switchWidget = (Switch) widget;

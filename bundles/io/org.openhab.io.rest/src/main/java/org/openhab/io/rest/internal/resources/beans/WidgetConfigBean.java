@@ -51,6 +51,10 @@ public class WidgetConfigBean {
 	public String name;
 	
 	public String label;
+	public String format;
+	public String units;
+	public String map;
+	
 	public String icon;
 
 	// widget-specific attributes

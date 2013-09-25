@@ -100,4 +100,56 @@ public class LabelSplitHelper {
 		return map;
 	}
 
+	LabelSplitHelper(String newLabel, String newFormat, String newUnit,
+			String newMap) {
+		label = newLabel;
+		format = newFormat;
+		unit = newUnit;
+		map = newMap;
+	}
+
+	void setLabel(String newLabel) {
+		label = newLabel;
+	}
+
+	void setFormat(String newFormat) {
+		format = newFormat;
+	}
+
+	void setUnit(String newUnit) {
+		unit = newUnit;
+	}
+
+	void setMapping(String newMap) {
+		map = newMap;
+	}
+
+	String getLabelString() {
+		String config = "";
+
+		// Ensure everything is a string
+		if(label == null)
+			label = "";
+		if(format == null)
+			format = "";
+		if(unit == null)
+			unit = "";
+		if(map == null)
+			map = "";
+
+		// Concatenate it all together!
+		config += label;
+		if(!format.isEmpty() || !unit.isEmpty() || !map.isEmpty()) {
+			config += " [";
+			if (!map.isEmpty())
+				config += "MAP=(" + map + ") ";
+			if(!format.isEmpty())
+				config += format;
+			if(!unit.isEmpty())
+				config += " " + unit;
+			config += "]";
+		}
+
+		return config;
+	}
 }

@@ -37,8 +37,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -55,11 +53,8 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang.StringEscapeUtils;
 import org.eclipse.emf.common.util.EList;
 import org.eclipse.emf.ecore.EObject;
-import org.openhab.core.items.Item;
 import org.openhab.io.rest.internal.RESTApplication;
 import org.openhab.io.rest.internal.resources.beans.ItemConfigBean;
 import org.openhab.io.rest.internal.resources.beans.ItemConfigListBean;
@@ -170,8 +165,8 @@ public class ItemConfigResource {
 		if (responseType != null) {
 			Object responseObject = responseType
 					.equals(MediaTypeHelper.APPLICATION_X_JAVASCRIPT) ? new JSONWithPadding(
-					putItemConfigBean(itemname, item), callback)
-					: putItemConfigBean(itemname, item);
+					updateItemConfigBean(itemname, item, false), callback)
+					: updateItemConfigBean(itemname, item, false);
 			return Response.ok(responseObject, responseType).build();
 		} else {
 			return Response.notAcceptable(null).build();
@@ -195,8 +190,8 @@ public class ItemConfigResource {
 		if (responseType != null) {
 			Object responseObject = responseType
 					.equals(MediaTypeHelper.APPLICATION_X_JAVASCRIPT) ? new JSONWithPadding(
-					postItemConfigBean(itemname, item), callback)
-					: postItemConfigBean(itemname, item);
+					updateItemConfigBean(itemname, item, false), callback)
+					: updateItemConfigBean(itemname, item, false);
 			return Response.ok(responseObject, responseType).build();
 		} else {
 			return Response.notAcceptable(null).build();
@@ -221,8 +216,8 @@ public class ItemConfigResource {
 		if (responseType != null) {
 			Object responseObject = responseType
 					.equals(MediaTypeHelper.APPLICATION_X_JAVASCRIPT) ? new JSONWithPadding(
-					new ItemConfigListBean(deleteItemConfigBean()), callback)
-					: new ItemConfigListBean(deleteItemConfigBean());
+					updateItemConfigBean(itemname, item, true), callback)
+					: updateItemConfigBean(itemname, item, true);
 			return Response.ok(responseObject, responseType).build();
 		} else {
 			return Response.notAcceptable(null).build();
@@ -239,7 +234,7 @@ public class ItemConfigResource {
 
 			if (item.getLabel() != null) {
 				LabelSplitHelper label = new LabelSplitHelper(item.getLabel());
-				if(label != null) {
+				if (label != null) {
 					bean.label = label.getLabel();
 					bean.units = label.getUnit();
 					bean.map = label.getMapping();
@@ -355,117 +350,143 @@ public class ItemConfigResource {
 		return null;
 	}
 
+	private String getItemConfigString(ModelItem item) {
+		String config = "";
+
+		if (item.getType() == null)
+			config = "Group";
+		else
+			config = item.getType();
+
+		config += "\t" + item.getName();
+
+		if (item.getLabel() != null)
+			config += "\t\"" + item.getLabel() + "\"";
+
+		if (item.getIcon() != null)
+			config += "\t<" + item.getIcon() + ">";
+
+		if (item.getGroups() != null) {
+			config += "\t(";
+			boolean first = true;
+			for (String group : item.getGroups()) {
+				if (first == false)
+					config += ",";
+				config += group;
+				first = false;
+			}
+			config += ")";
+		}
+
+		if (item.getBindings().size() != 0) {
+			for (ModelBinding binding : item.getBindings()) {
+				config += "\t{ " + binding.getType() + "=\"";
+				config += binding.getConfiguration();
+				config += "\" }";
+			}
+		}
+
+		return config;
+	}
+
+	private String getItemConfigString(ItemConfigBean item) {
+		String config = "";
+
+		config = item.type.substring(0, item.type.indexOf("Item"));
+
+		config += "\t" + item.name;
+
+		if (item.label != null) {
+			LabelSplitHelper label = new LabelSplitHelper(item.label, item.format, item.units, item.map);
+			config += "\"" + label.getLabelString() + "\"";
+		}
+
+		if (item.icon != null)
+			config += "\t<" + item.icon + ">";
+
+		if (item.groups != null) {
+			config += "\t(";
+			boolean first = true;
+			for (String group : item.groups) {
+				if (first == false)
+					config += ",";
+				config += group;
+				first = false;
+			}
+			config += ")\t";
+		}
+
+		if (item.bindings != null) {
+			for (String binding : item.bindings) {
+				config += "\t{ " + item.binding + "=\"";
+				config += binding;
+				config += "\" }";
+			}
+		}
+
+		return config;
+	}
+
 	// Save an item
-	private ItemConfigBean putItemConfigBean(String itemname,
-			ItemConfigBean itemUpdate) {
+	private ItemConfigBean updateItemConfigBean(String itemname,
+			ItemConfigBean itemUpdate, boolean deleteItem) {
 
 		ModelRepository repo = RESTApplication.getModelRepository();
 		if (repo == null)
 			return null;
 
 		String modelName = itemUpdate.model + ".items";
-		
+
 		String orgName = "configurations/items/" + itemUpdate.model + ".items";
-		String newName = "configurations/items/" + itemUpdate.model + ".items.new";
-		String bakName = "configurations/items/" + itemUpdate.model + ".items.bak";
+		String newName = "configurations/items/" + itemUpdate.model
+				+ ".items.new";
+		String bakName = "configurations/items/" + itemUpdate.model
+				+ ".items.bak";
 
 		ItemModel items = (ItemModel) repo.getModel(modelName);
 
-		FileWriter fw = null;
 		try {
+			boolean itemSaved = deleteItem;
+
+			FileWriter fw = null;
 			fw = new FileWriter(newName, false);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+			BufferedWriter out = new BufferedWriter(fw);
 
-		if (fw == null)
-			return null;
-
-		BufferedWriter out = new BufferedWriter(fw);
-
-		try {
+			// Loop through all items in the model and write them to the new
+			// file
 			EList<ModelItem> modelList = items.getItems();
 			for (ModelItem item : modelList) {
 				if (item.getName().equals(itemUpdate.name)) {
-					// Got the item - write the new data
-					out.write(itemUpdate.type.substring(0, itemUpdate.type.indexOf("Item")) + "\t");
-					out.write(itemUpdate.name + "\t");
-					if(itemUpdate.label != null) {
-						out.write("\"" + itemUpdate.label + " [");
-						if(itemUpdate.map != null && !itemUpdate.map.isEmpty())
-							out.write("MAP=(" + itemUpdate.map + ") ");
-						out.write(itemUpdate.format + " " + itemUpdate.units + "]\"\t");
-					}
-					if(itemUpdate.icon != null)
-						out.write("<" + itemUpdate.icon + ">\t");
-					if(itemUpdate.groups != null) {
-						out.write("(");
-						boolean first = true;
-						for(String group : itemUpdate.groups) {
-							if(first == false)
-							out.write(",");
-							out.write(group);
-							first = false;
-						}
-						out.write(")\t");
-					}
-					if(itemUpdate.bindings != null) {
-						for(String binding : itemUpdate.bindings) {
-							out.write("{ " + itemUpdate.binding + "=\"");
-							out.write(binding);
-							out.write("\" } ");
-						}
-					}
-					out.write("\r\n");
+					// Write out the new data
+					if(deleteItem == false)
+						out.write(getItemConfigString(itemUpdate) + "\r\n");
+					itemSaved = true;
 				} else {
 					// Write out the old data
-					if(item.getType() == null)
-						out.write("Group\t");
-					else
-						out.write(item.getType() + "\t");
-					out.write(item.getName() + "\t");
-					if(item.getLabel() != null)
-						out.write("\"" + item.getLabel() +"\"\t");
-					if(item.getIcon() != null)
-						out.write("<" + item.getIcon() + ">\t");
-					if(item.getGroups() != null) {
-						out.write("(");
-						boolean first = true;
-						for(String group : item.getGroups()) {
-							if(first == false)
-								out.write(",");
-							out.write(group);
-							first = false;
-						}
-						out.write(")\t");
-					}
-					if(item.getBindings().size() != 0) {
-						for(ModelBinding binding : item.getBindings()) {
-							out.write("{ " + binding.getType() + "=\"");
-							out.write(binding.getConfiguration());
-							out.write("\" } ");
-						}
-					}
-					out.write("\r\n");
+					out.write(getItemConfigString(item) + "\r\n");
 				}
 			}
+
+			// If this is a new item, then save it at the end of the file
+			if (itemSaved == false)
+				out.write(getItemConfigString(itemUpdate) + "\r\n");
+
 			out.close();
 
 			// Rename the files.
 			File bakFile = new File(bakName);
-		    File orgFile = new File(orgName);
-		    File newFile = new File(newName);
-		    
+			File orgFile = new File(orgName);
+			File newFile = new File(newName);
+
 			// Delete any existing .bak file
-		    if(bakFile.exists())
-		    	bakFile.delete();
+			if (bakFile.exists())
+				bakFile.delete();
 
-		    // Rename the existing item file to backup
-		    orgFile.renameTo(bakFile);
+			// Rename the existing item file to backup
+			orgFile.renameTo(bakFile);
 
-		    // Rename the new file to the item file
-		    newFile.renameTo(orgFile);
+			// Rename the new file to the item file
+			newFile.renameTo(orgFile);
 
 			// Update the model repository
 			InputStream inFile;
@@ -473,27 +494,13 @@ public class ItemConfigResource {
 				inFile = new FileInputStream(orgName);
 				repo.addOrRefreshModel(modelName, inFile);
 			} catch (FileNotFoundException e) {
-				logger.debug("Error refreshing item file " + modelName + ":", e);
+				logger.error("Error refreshing item file " + modelName + ":", e);
 			}
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.error("Error writing item file " + modelName + ":", e);
 		}
 
 		return getItemConfigBean(itemname);
-	}
-
-	// Create a new item
-	private ItemConfigBean postItemConfigBean(String itemname,
-			ItemConfigBean item) {
-
-		return getItemConfigBean(itemname);
-	}
-
-	// Delete an item
-	private List<ItemConfigBean> deleteItemConfigBean() {
-
-		return getItemConfigBeanList();
 	}
 
 	private static ItemPersistenceBean getItemPersistence(ModelItem item,
