@@ -98,11 +98,6 @@ public class ItemConfigResource {
 	private static final Logger logger = LoggerFactory
 			.getLogger(ItemConfigResource.class);
 
-	private static final Pattern LABEL_PATTERN = Pattern
-			.compile("(.*?)\\[(.*)\\]");
-	private static final Pattern MAP_PATTERN = Pattern
-			.compile("(?i)MAP=\\((.*?)\\)(.*)");
-
 	/** The URI path to this resource */
 	public static final String PATH_CONFIG = "config/items";
 
@@ -240,70 +235,12 @@ public class ItemConfigResource {
 			bean.model = model;
 
 			if (item.getLabel() != null) {
-				Matcher labelMatcher = LABEL_PATTERN.matcher(item.getLabel());
-
-				if (labelMatcher.matches()) {
-					bean.label = labelMatcher.group(1).trim();
-					bean.format = labelMatcher.group(2).trim();
-				} else
-					bean.label = item.getLabel();
-
-				Matcher mapMatcher = MAP_PATTERN.matcher(bean.format);
-				if (mapMatcher.matches()) {
-					bean.map = mapMatcher.group(1).trim();
-					bean.format = mapMatcher.group(2).trim();
-				} else
-					bean.format = item.getLabel();
-				
-				if (bean.format != null && bean.format.length() > 0) {
-					String format = bean.format.trim();
-
-					// Split the string according to the "Formatter" format
-					// specification
-					// Everything up to the last format string goes in the
-					// format
-					// Everything after goes in the units
-					int state = 0;
-					String s1 = "";
-					String s2 = "";
-					final String conversions = "bBhHsScCdoxXeEfgGaAtT%n";
-					for (char ch : format.toCharArray()) {
-						switch (state) {
-						case 0:
-							// Looking for start
-							s2 += ch;
-							if (ch == '%') {
-								state = 1;
-							}
-							break;
-						case 1:
-							// Looking for end (conversion id)
-							s2 += ch;
-							if (ch == '%') {
-								// %% is not considered part of the format -
-								// it's the "unit"
-								state = 0;
-							} else if (conversions.indexOf(ch) != -1) {
-								// This is a valid conversion ID
-								s1 += s2;
-								s2 = "";
-								state = 0;
-
-								// Is this a time format?
-								if (ch == 't' || ch == 'T')
-									state = 2;
-							}
-							break;
-						case 2:
-							// One more character for time conversion
-							s1 += ch;
-							state = 0;
-							break;
-						}
-					}
-
-					bean.format = s1.trim();
-					bean.units = s2.trim();
+				LabelSplitHelper label = new LabelSplitHelper(item.getLabel());
+				if(label != null) {
+					bean.label = label.getLabel();
+					bean.units = label.getUnit();
+					bean.map = label.getMapping();
+					bean.format = label.getFormat();
 				}
 			}
 
