@@ -30,8 +30,11 @@ package org.openhab.io.rest.internal.resources;
 
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -361,9 +364,13 @@ public class ItemConfigResource {
 			return null;
 
 		String modelName = itemUpdate.model + ".items";
+		
+		String orgName = "configurations/items/" + itemUpdate.model + ".items";
+		String newName = "configurations/items/" + itemUpdate.model + ".items.new";
+		String bakName = "configurations/items/" + itemUpdate.model + ".items.bak";
+
 		ItemModel items = (ItemModel) repo.getModel(modelName);
 
-		String newName = "configurations/items/" + itemUpdate.model + ".items-out";
 		FileWriter fw = null;
 		try {
 			fw = new FileWriter(newName, false);
@@ -386,7 +393,7 @@ public class ItemConfigResource {
 					out.write(itemUpdate.name + "\t");
 					if(itemUpdate.label != null) {
 						out.write("\"" + itemUpdate.label + " [");
-						if(itemUpdate.map != null)
+						if(itemUpdate.map != null && !itemUpdate.map.isEmpty())
 							out.write("MAP=(" + itemUpdate.map + ") ");
 						out.write(itemUpdate.format + " " + itemUpdate.units + "]\"\t");
 					}
@@ -404,10 +411,11 @@ public class ItemConfigResource {
 						out.write(")\t");
 					}
 					if(itemUpdate.bindings != null) {
-						out.write("{ heatmiser=\"");
-						for(String binding : itemUpdate.bindings)
+						for(String binding : itemUpdate.bindings) {
+							out.write("{ " + itemUpdate.binding + "=\"");
 							out.write(binding);
-						out.write("\" }");
+							out.write("\" } ");
+						}
 					}
 					out.write("\r\n");
 				} else {
@@ -433,21 +441,45 @@ public class ItemConfigResource {
 						out.write(")\t");
 					}
 					if(item.getBindings().size() != 0) {
-						out.write("{ heatmiser=\"");
-						for(ModelBinding binding : item.getBindings())
+						for(ModelBinding binding : item.getBindings()) {
+							out.write("{ " + binding.getType() + "=\"");
 							out.write(binding.getConfiguration());
-						out.write("\" }");
+							out.write("\" } ");
+						}
 					}
 					out.write("\r\n");
 				}
 			}
 			out.close();
+
+			// Rename the files.
+			File bakFile = new File(bakName);
+		    File orgFile = new File(orgName);
+		    File newFile = new File(newName);
+		    
+			// Delete any existing .bak file
+		    if(bakFile.exists())
+		    	bakFile.delete();
+
+		    // Rename the existing item file to backup
+		    orgFile.renameTo(bakFile);
+
+		    // Rename the new file to the item file
+		    newFile.renameTo(orgFile);
+
+			// Update the model repository
+			InputStream inFile;
+			try {
+				inFile = new FileInputStream(orgName);
+				repo.addOrRefreshModel(modelName, inFile);
+			} catch (FileNotFoundException e) {
+				logger.debug("Error refreshing item file " + modelName + ":", e);
+			}
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
-		
 		return getItemConfigBean(itemname);
 	}
 
