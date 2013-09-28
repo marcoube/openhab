@@ -205,8 +205,7 @@ public class ItemConfigResource {
 			@Context HttpHeaders headers,
 			@QueryParam("type") String type,
 			@PathParam("itemname") String itemname,
-			@QueryParam("jsoncallback") @DefaultValue("callback") String callback,
-			ItemConfigBean item) {
+			@QueryParam("jsoncallback") @DefaultValue("callback") String callback) {
 		logger.debug(
 				"Received HTTP DELETE request at '{}' for media type '{}'.",
 				uriInfo.getPath(), type);
@@ -216,8 +215,8 @@ public class ItemConfigResource {
 		if (responseType != null) {
 			Object responseObject = responseType
 					.equals(MediaTypeHelper.APPLICATION_X_JAVASCRIPT) ? new JSONWithPadding(
-					updateItemConfigBean(itemname, item, true), callback)
-					: updateItemConfigBean(itemname, item, true);
+							new ItemConfigListBean(deleteItem(itemname)), callback)
+					: new ItemConfigListBean(deleteItem(itemname));
 			return Response.ok(responseObject, responseType).build();
 		} else {
 			return Response.notAcceptable(null).build();
@@ -319,6 +318,16 @@ public class ItemConfigResource {
 		return beanList;
 	}
 
+	private List<ItemConfigBean> deleteItem(String itemname) {
+		ItemConfigBean item = getItemConfigBean(itemname);
+		if(item == null)
+			return getItemConfigBeanList();
+
+		updateItemConfigBean(itemname, item, true);
+
+		return getItemConfigBeanList();
+	}
+
 	private ItemConfigBean getItemConfigBean(String itemname) {
 		ModelRepository repo = RESTApplication.getModelRepository();
 		if (repo == null)
@@ -367,15 +376,19 @@ public class ItemConfigResource {
 			config += "\t<" + item.getIcon() + ">";
 
 		if (item.getGroups() != null) {
-			config += "\t(";
 			boolean first = true;
 			for (String group : item.getGroups()) {
-				if (first == false)
-					config += ",";
-				config += group;
-				first = false;
+				if (group != null && !group.isEmpty()) {
+					if (first == true)
+						config += "\t(";
+					else
+						config += ",";
+					config += group;
+					first = false;
+				}
 			}
-			config += ")";
+			if (first != true)
+				config += ")\t";
 		}
 
 		if (item.getBindings().size() != 0) {
@@ -397,23 +410,28 @@ public class ItemConfigResource {
 		config += "\t" + item.name;
 
 		if (item.label != null) {
-			LabelSplitHelper label = new LabelSplitHelper(item.label, item.format, item.units, item.map);
-			config += "\"" + label.getLabelString() + "\"";
+			LabelSplitHelper label = new LabelSplitHelper(item.label,
+					item.format, item.units, item.map);
+			config += "\t\"" + label.getLabelString() + "\"";
 		}
 
 		if (item.icon != null)
 			config += "\t<" + item.icon + ">";
 
 		if (item.groups != null) {
-			config += "\t(";
 			boolean first = true;
 			for (String group : item.groups) {
-				if (first == false)
-					config += ",";
-				config += group;
-				first = false;
+				if (group != null && !group.isEmpty()) {
+					if (first == true)
+						config += "\t(";
+					else
+						config += ",";
+					config += group;
+					first = false;
+				}
 			}
-			config += ")\t";
+			if (first != true)
+				config += ")\t";
 		}
 
 		if (item.bindings != null) {
@@ -452,18 +470,21 @@ public class ItemConfigResource {
 			fw = new FileWriter(newName, false);
 			BufferedWriter out = new BufferedWriter(fw);
 
-			// Loop through all items in the model and write them to the new
-			// file
-			EList<ModelItem> modelList = items.getItems();
-			for (ModelItem item : modelList) {
-				if (item.getName().equals(itemUpdate.name)) {
-					// Write out the new data
-					if(deleteItem == false)
-						out.write(getItemConfigString(itemUpdate) + "\r\n");
-					itemSaved = true;
-				} else {
-					// Write out the old data
-					out.write(getItemConfigString(item) + "\r\n");
+			// Are there any items in this model?
+			if (items != null) {
+				// Loop through all items in the model and write them to the new
+				// file
+				EList<ModelItem> modelList = items.getItems();
+				for (ModelItem item : modelList) {
+					if (item.getName().equals(itemUpdate.name)) {
+						// Write out the new data
+						if (deleteItem == false)
+							out.write(getItemConfigString(itemUpdate) + "\r\n");
+						itemSaved = true;
+					} else {
+						// Write out the old data
+						out.write(getItemConfigString(item) + "\r\n");
+					}
 				}
 			}
 

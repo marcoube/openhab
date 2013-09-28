@@ -55,12 +55,15 @@ public class LabelSplitHelper {
 					break;
 				case 1:
 					// Looking for end (conversion id)
-					s2 += ch;
 					if (ch == '%') {
 						// %% is not considered part of the format -
 						// it's the "unit"
 						state = 0;
-					} else if (conversions.indexOf(ch) != -1) {
+						break;
+					}
+					// Concatenate here - this will remove the double %
+					s2 += ch;
+					if (conversions.indexOf(ch) != -1) {
 						// This is a valid conversion ID
 						s1 += s2;
 						s2 = "";
@@ -78,7 +81,7 @@ public class LabelSplitHelper {
 					break;
 				}
 			}
-
+			
 			format = s1.trim();
 			unit = s2.trim();
 		}
@@ -136,13 +139,22 @@ public class LabelSplitHelper {
 			unit = "";
 		if(map == null)
 			map = "";
+		
+		// Resolve double %% in unit
+		String unitOut = "";
+		for(int c = 0; c < unit.length(); c++) {
+			unitOut += unit.charAt(c);
+			if(unit.charAt(c) == '%')
+				unitOut += '%';
+		}
+		unit = unitOut;
 
 		// Concatenate it all together!
 		config += label;
 		if(!format.isEmpty() || !unit.isEmpty() || !map.isEmpty()) {
 			config += " [";
 			if (!map.isEmpty())
-				config += "MAP=(" + map + ") ";
+				config += "MAP(" + map + "):";
 			if(!format.isEmpty())
 				config += format;
 			if(!unit.isEmpty())
