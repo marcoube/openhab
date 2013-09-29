@@ -53,7 +53,8 @@ public class WidgetConfigBean {
 	public String label;
 	public String format;
 	public String units;
-	public String map;
+	public String translateService;
+	public String translateRule;
 	
 	public String icon;
 

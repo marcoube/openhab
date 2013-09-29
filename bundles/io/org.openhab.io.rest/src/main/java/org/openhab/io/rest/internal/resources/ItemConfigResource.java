@@ -93,8 +93,7 @@ import com.sun.jersey.api.json.JSONWithPadding;
 @Path(ItemConfigResource.PATH_CONFIG)
 public class ItemConfigResource {
 
-	private static final Logger logger = LoggerFactory
-			.getLogger(ItemConfigResource.class);
+	private static final Logger logger = LoggerFactory.getLogger(ItemConfigResource.class);
 
 	/** The URI path to this resource */
 	public static final String PATH_CONFIG = "config/items";
@@ -104,20 +103,15 @@ public class ItemConfigResource {
 
 	@GET
 	@Produces({ MediaType.WILDCARD })
-	public Response getItems(
-			@Context HttpHeaders headers,
-			@QueryParam("type") String type,
+	public Response getItems(@Context HttpHeaders headers, @QueryParam("type") String type,
 			@QueryParam("jsoncallback") @DefaultValue("callback") String callback) {
-		logger.debug("Received HTTP GET request at '{}' for media type '{}'.",
-				uriInfo.getPath(), type);
+		logger.debug("Received HTTP GET request at '{}' for media type '{}'.", uriInfo.getPath(), type);
 
-		String responseType = MediaTypeHelper.getResponseMediaType(
-				headers.getAcceptableMediaTypes(), type);
+		String responseType = MediaTypeHelper.getResponseMediaType(headers.getAcceptableMediaTypes(), type);
 		if (responseType != null) {
-			Object responseObject = responseType
-					.equals(MediaTypeHelper.APPLICATION_X_JAVASCRIPT) ? new JSONWithPadding(
-					new ItemConfigListBean(getItemConfigBeanList()), callback)
-					: new ItemConfigListBean(getItemConfigBeanList());
+			Object responseObject = responseType.equals(MediaTypeHelper.APPLICATION_X_JAVASCRIPT) ? new JSONWithPadding(
+					new ItemConfigListBean(getItemConfigBeanList()), callback) : new ItemConfigListBean(
+					getItemConfigBeanList());
 			return Response.ok(responseObject, responseType).build();
 		} else {
 			return Response.notAcceptable(null).build();
@@ -127,21 +121,15 @@ public class ItemConfigResource {
 	@GET
 	@Path("/{itemname: [a-zA-Z_0-9]*}")
 	@Produces({ MediaType.WILDCARD })
-	public Response getItem(
-			@Context HttpHeaders headers,
-			@QueryParam("type") String type,
+	public Response getItem(@Context HttpHeaders headers, @QueryParam("type") String type,
 			@PathParam("itemname") String itemname,
 			@QueryParam("jsoncallback") @DefaultValue("callback") String callback) {
-		logger.debug("Received HTTP GET request at '{}' for media type '{}'.",
-				uriInfo.getPath(), type);
+		logger.debug("Received HTTP GET request at '{}' for media type '{}'.", uriInfo.getPath(), type);
 
-		String responseType = MediaTypeHelper.getResponseMediaType(
-				headers.getAcceptableMediaTypes(), type);
+		String responseType = MediaTypeHelper.getResponseMediaType(headers.getAcceptableMediaTypes(), type);
 		if (responseType != null) {
-			Object responseObject = responseType
-					.equals(MediaTypeHelper.APPLICATION_X_JAVASCRIPT) ? new JSONWithPadding(
-					getItemConfigBean(itemname), callback)
-					: getItemConfigBean(itemname);
+			Object responseObject = responseType.equals(MediaTypeHelper.APPLICATION_X_JAVASCRIPT) ? new JSONWithPadding(
+					getItemConfigBean(itemname), callback) : getItemConfigBean(itemname);
 			return Response.ok(responseObject, responseType).build();
 		} else {
 			return Response.notAcceptable(null).build();
@@ -151,20 +139,14 @@ public class ItemConfigResource {
 	@PUT
 	@Path("/{itemname: [a-zA-Z_0-9]*}")
 	@Produces({ MediaType.WILDCARD })
-	public Response putItem(
-			@Context HttpHeaders headers,
-			@QueryParam("type") String type,
+	public Response putItem(@Context HttpHeaders headers, @QueryParam("type") String type,
 			@PathParam("itemname") String itemname,
-			@QueryParam("jsoncallback") @DefaultValue("callback") String callback,
-			ItemConfigBean item) {
-		logger.debug("Received HTTP PUT request at '{}' for media type '{}'.",
-				uriInfo.getPath(), type);
+			@QueryParam("jsoncallback") @DefaultValue("callback") String callback, ItemConfigBean item) {
+		logger.debug("Received HTTP PUT request at '{}' for media type '{}'.", uriInfo.getPath(), type);
 
-		String responseType = MediaTypeHelper.getResponseMediaType(
-				headers.getAcceptableMediaTypes(), type);
+		String responseType = MediaTypeHelper.getResponseMediaType(headers.getAcceptableMediaTypes(), type);
 		if (responseType != null) {
-			Object responseObject = responseType
-					.equals(MediaTypeHelper.APPLICATION_X_JAVASCRIPT) ? new JSONWithPadding(
+			Object responseObject = responseType.equals(MediaTypeHelper.APPLICATION_X_JAVASCRIPT) ? new JSONWithPadding(
 					updateItemConfigBean(itemname, item, false), callback)
 					: updateItemConfigBean(itemname, item, false);
 			return Response.ok(responseObject, responseType).build();
@@ -176,20 +158,14 @@ public class ItemConfigResource {
 	@POST
 	@Path("/{itemname: [a-zA-Z_0-9]*}")
 	@Produces({ MediaType.WILDCARD })
-	public Response postItem(
-			@Context HttpHeaders headers,
-			@QueryParam("type") String type,
+	public Response postItem(@Context HttpHeaders headers, @QueryParam("type") String type,
 			@PathParam("itemname") String itemname,
-			@QueryParam("jsoncallback") @DefaultValue("callback") String callback,
-			ItemConfigBean item) {
-		logger.debug("Received HTTP POST request at '{}' for media type '{}'.",
-				uriInfo.getPath(), type);
+			@QueryParam("jsoncallback") @DefaultValue("callback") String callback, ItemConfigBean item) {
+		logger.debug("Received HTTP POST request at '{}' for media type '{}'.", uriInfo.getPath(), type);
 
-		String responseType = MediaTypeHelper.getResponseMediaType(
-				headers.getAcceptableMediaTypes(), type);
+		String responseType = MediaTypeHelper.getResponseMediaType(headers.getAcceptableMediaTypes(), type);
 		if (responseType != null) {
-			Object responseObject = responseType
-					.equals(MediaTypeHelper.APPLICATION_X_JAVASCRIPT) ? new JSONWithPadding(
+			Object responseObject = responseType.equals(MediaTypeHelper.APPLICATION_X_JAVASCRIPT) ? new JSONWithPadding(
 					updateItemConfigBean(itemname, item, false), callback)
 					: updateItemConfigBean(itemname, item, false);
 			return Response.ok(responseObject, responseType).build();
@@ -201,22 +177,16 @@ public class ItemConfigResource {
 	@DELETE
 	@Path("/{itemname: [a-zA-Z_0-9]*}")
 	@Produces({ MediaType.WILDCARD })
-	public Response deleteItem(
-			@Context HttpHeaders headers,
-			@QueryParam("type") String type,
+	public Response deleteItem(@Context HttpHeaders headers, @QueryParam("type") String type,
 			@PathParam("itemname") String itemname,
 			@QueryParam("jsoncallback") @DefaultValue("callback") String callback) {
-		logger.debug(
-				"Received HTTP DELETE request at '{}' for media type '{}'.",
-				uriInfo.getPath(), type);
+		logger.debug("Received HTTP DELETE request at '{}' for media type '{}'.", uriInfo.getPath(), type);
 
-		String responseType = MediaTypeHelper.getResponseMediaType(
-				headers.getAcceptableMediaTypes(), type);
+		String responseType = MediaTypeHelper.getResponseMediaType(headers.getAcceptableMediaTypes(), type);
 		if (responseType != null) {
-			Object responseObject = responseType
-					.equals(MediaTypeHelper.APPLICATION_X_JAVASCRIPT) ? new JSONWithPadding(
-							new ItemConfigListBean(deleteItem(itemname)), callback)
-					: new ItemConfigListBean(deleteItem(itemname));
+			Object responseObject = responseType.equals(MediaTypeHelper.APPLICATION_X_JAVASCRIPT) ? new JSONWithPadding(
+					new ItemConfigListBean(deleteItem(itemname)), callback) : new ItemConfigListBean(
+					deleteItem(itemname));
 			return Response.ok(responseObject, responseType).build();
 		} else {
 			return Response.notAcceptable(null).build();
@@ -236,7 +206,8 @@ public class ItemConfigResource {
 				if (label != null) {
 					bean.label = label.getLabel();
 					bean.units = label.getUnit();
-					bean.map = label.getMapping();
+					bean.translateService = label.getTranslationService();
+					bean.translateRule = label.getTranslationRule();
 					bean.format = label.getFormat();
 				}
 			}
@@ -273,10 +244,8 @@ public class ItemConfigResource {
 
 			bean.persistence = new ArrayList<ItemPersistenceBean>();
 			for (int i = 0; i < listOfFiles.length; i++) {
-				if (listOfFiles[i].isFile()
-						& listOfFiles[i].getName().endsWith(".persist")) {
-					ItemPersistenceBean p = getItemPersistence(item,
-							listOfFiles[i].getName());
+				if (listOfFiles[i].isFile() & listOfFiles[i].getName().endsWith(".persist")) {
+					ItemPersistenceBean p = getItemPersistence(item, listOfFiles[i].getName());
 					if (p != null)
 						bean.persistence.add(p);
 				}
@@ -302,14 +271,10 @@ public class ItemConfigResource {
 			return null;
 
 		for (int i = 0; i < listOfFiles.length; i++) {
-			if (listOfFiles[i].isFile()
-					& listOfFiles[i].getName().endsWith(".items")) {
-				ItemModel items = (ItemModel) repo.getModel(listOfFiles[i]
-						.getName());
-				List<ItemConfigBean> beans = readItemModel(
-						items,
-						listOfFiles[i].getName().substring(0,
-								listOfFiles[i].getName().indexOf('.')));
+			if (listOfFiles[i].isFile() & listOfFiles[i].getName().endsWith(".items")) {
+				ItemModel items = (ItemModel) repo.getModel(listOfFiles[i].getName());
+				List<ItemConfigBean> beans = readItemModel(items,
+						listOfFiles[i].getName().substring(0, listOfFiles[i].getName().indexOf('.')));
 				if (beans != null)
 					beanList.addAll(beans);
 			}
@@ -320,7 +285,7 @@ public class ItemConfigResource {
 
 	private List<ItemConfigBean> deleteItem(String itemname) {
 		ItemConfigBean item = getItemConfigBean(itemname);
-		if(item == null)
+		if (item == null)
 			return getItemConfigBeanList();
 
 		updateItemConfigBean(itemname, item, true);
@@ -340,14 +305,10 @@ public class ItemConfigResource {
 			return null;
 
 		for (int i = 0; i < listOfFiles.length; i++) {
-			if (listOfFiles[i].isFile()
-					& listOfFiles[i].getName().endsWith(".items")) {
-				ItemModel items = (ItemModel) repo.getModel(listOfFiles[i]
-						.getName());
-				List<ItemConfigBean> beans = readItemModel(
-						items,
-						listOfFiles[i].getName().substring(0,
-								listOfFiles[i].getName().indexOf('.')));
+			if (listOfFiles[i].isFile() & listOfFiles[i].getName().endsWith(".items")) {
+				ItemModel items = (ItemModel) repo.getModel(listOfFiles[i].getName());
+				List<ItemConfigBean> beans = readItemModel(items,
+						listOfFiles[i].getName().substring(0, listOfFiles[i].getName().indexOf('.')));
 
 				for (ItemConfigBean bean : beans) {
 					if (bean.name.equals(itemname))
@@ -410,8 +371,8 @@ public class ItemConfigResource {
 		config += "\t" + item.name;
 
 		if (item.label != null) {
-			LabelSplitHelper label = new LabelSplitHelper(item.label,
-					item.format, item.units, item.map);
+			LabelSplitHelper label = new LabelSplitHelper(item.label, item.format, item.units, item.translateService,
+					item.translateRule);
 			config += "\t\"" + label.getLabelString() + "\"";
 		}
 
@@ -446,8 +407,7 @@ public class ItemConfigResource {
 	}
 
 	// Save an item
-	private ItemConfigBean updateItemConfigBean(String itemname,
-			ItemConfigBean itemUpdate, boolean deleteItem) {
+	private ItemConfigBean updateItemConfigBean(String itemname, ItemConfigBean itemUpdate, boolean deleteItem) {
 
 		ModelRepository repo = RESTApplication.getModelRepository();
 		if (repo == null)
@@ -456,10 +416,8 @@ public class ItemConfigResource {
 		String modelName = itemUpdate.model + ".items";
 
 		String orgName = "configurations/items/" + itemUpdate.model + ".items";
-		String newName = "configurations/items/" + itemUpdate.model
-				+ ".items.new";
-		String bakName = "configurations/items/" + itemUpdate.model
-				+ ".items.bak";
+		String newName = "configurations/items/" + itemUpdate.model + ".items.new";
+		String bakName = "configurations/items/" + itemUpdate.model + ".items.bak";
 
 		ItemModel items = (ItemModel) repo.getModel(modelName);
 
@@ -524,8 +482,7 @@ public class ItemConfigResource {
 		return getItemConfigBean(itemname);
 	}
 
-	private static ItemPersistenceBean getItemPersistence(ModelItem item,
-			String service) {
+	private static ItemPersistenceBean getItemPersistence(ModelItem item, String service) {
 		ModelRepository repo = RESTApplication.getModelRepository();
 		if (repo == null)
 			return null;
@@ -540,19 +497,14 @@ public class ItemConfigResource {
 				EObject modelItem = config.getItems().get(cnt);
 				if (modelItem instanceof GroupConfigImpl) {
 					for (String group : item.getGroups()) {
-						if (((GroupConfigImpl) modelItem).getGroup()
-								.equalsIgnoreCase(group)) {
+						if (((GroupConfigImpl) modelItem).getGroup().equalsIgnoreCase(group)) {
 							ItemPersistenceBean bean = new ItemPersistenceBean();
-							bean.service = service.substring(0,
-									service.indexOf('.'));
-							bean.group = ((GroupConfigImpl) modelItem)
-									.getGroup();
+							bean.service = service.substring(0, service.indexOf('.'));
+							bean.group = ((GroupConfigImpl) modelItem).getGroup();
 							bean.strategies = new ArrayList<String>();
 
-							for (int str = 0; str < config.getStrategies()
-									.size(); str++) {
-								Strategy strategyItem = config.getStrategies()
-										.get(str);
+							for (int str = 0; str < config.getStrategies().size(); str++) {
+								Strategy strategyItem = config.getStrategies().get(str);
 								bean.strategies.add(strategyItem.getName());
 							}
 							return bean;
@@ -562,14 +514,12 @@ public class ItemConfigResource {
 				if (modelItem instanceof ItemConfigImpl) {
 					if (((ItemConfigImpl) modelItem).getItem().equals(item)) {
 						ItemPersistenceBean bean = new ItemPersistenceBean();
-						bean.service = service.substring(0,
-								service.indexOf('.'));
+						bean.service = service.substring(0, service.indexOf('.'));
 						bean.item = ((ItemConfigImpl) modelItem).getItem();
 						bean.strategies = new ArrayList<String>();
 
 						for (int str = 0; str < config.getStrategies().size(); str++) {
-							Strategy strategyItem = config.getStrategies().get(
-									str);
+							Strategy strategyItem = config.getStrategies().get(str);
 							bean.strategies.add(strategyItem.getName());
 						}
 						return bean;

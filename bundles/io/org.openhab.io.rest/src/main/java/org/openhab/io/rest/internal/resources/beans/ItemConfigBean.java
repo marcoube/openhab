@@ -55,7 +55,8 @@ public class ItemConfigBean {
 	public String label;
 	public String units;
 	public String format;
-	public String map;
+	public String translateService;
+	public String translateRule;
 	
 	public List<String> groups;
 	public List<String> bindings;

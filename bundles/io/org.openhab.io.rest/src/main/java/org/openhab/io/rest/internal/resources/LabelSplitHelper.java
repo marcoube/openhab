@@ -6,13 +6,12 @@ import java.util.regex.Pattern;
 public class LabelSplitHelper {
 	private String label = null;
 	private String format = null;
-	private String map = null;
+	private String translationService = null;
+	private String translationRule = null;
 	private String unit = null;
 
-	private static final Pattern LABEL_PATTERN = Pattern
-			.compile("(.*?)\\[(.*)\\]");
-	private static final Pattern MAP_PATTERN = Pattern
-			.compile("(?i)MAP\\((.*?)\\):(.*)");
+	private static final Pattern LABEL_PATTERN = Pattern.compile("(.*?)\\[(.*)\\]");
+	private static final Pattern MAP_PATTERN = Pattern.compile("([a-zA-Z]*?)\\((.*?)\\):(.*)");
 
 	final static String conversions = "bBhHsScCdoxXeEfgGaAtT%n";
 
@@ -28,8 +27,9 @@ public class LabelSplitHelper {
 		if (format != null) {
 			Matcher mapMatcher = MAP_PATTERN.matcher(format);
 			if (mapMatcher.matches()) {
-				map = mapMatcher.group(1).trim();
-				format = mapMatcher.group(2).trim();
+				translationService = mapMatcher.group(1).trim();
+				translationRule = mapMatcher.group(2).trim();
+				format = mapMatcher.group(3).trim();
 			}
 		}
 
@@ -81,7 +81,7 @@ public class LabelSplitHelper {
 					break;
 				}
 			}
-			
+
 			format = s1.trim();
 			unit = s2.trim();
 		}
@@ -99,16 +99,20 @@ public class LabelSplitHelper {
 		return unit;
 	}
 
-	String getMapping() {
-		return map;
+	String getTranslationService() {
+		return translationService;
 	}
 
-	LabelSplitHelper(String newLabel, String newFormat, String newUnit,
-			String newMap) {
+	String getTranslationRule() {
+		return translationRule;
+	}
+
+	LabelSplitHelper(String newLabel, String newFormat, String newUnit, String newService, String newRule) {
 		label = newLabel;
 		format = newFormat;
 		unit = newUnit;
-		map = newMap;
+		translationService = newService;
+		translationRule = newRule;
 	}
 
 	void setLabel(String newLabel) {
@@ -123,41 +127,47 @@ public class LabelSplitHelper {
 		unit = newUnit;
 	}
 
-	void setMapping(String newMap) {
-		map = newMap;
+	void setTranslationService(String newService) {
+		translationService = newService;
+	}
+
+	void setTranslationRule(String newRule) {
+		translationRule = newRule;
 	}
 
 	String getLabelString() {
 		String config = "";
 
 		// Ensure everything is a string
-		if(label == null)
+		if (label == null)
 			label = "";
-		if(format == null)
+		if (format == null)
 			format = "";
-		if(unit == null)
+		if (unit == null)
 			unit = "";
-		if(map == null)
-			map = "";
-		
+		if (translationService == null)
+			translationService = "";
+		if (translationRule == null)
+			translationRule = "";
+
 		// Resolve double %% in unit
 		String unitOut = "";
-		for(int c = 0; c < unit.length(); c++) {
+		for (int c = 0; c < unit.length(); c++) {
 			unitOut += unit.charAt(c);
-			if(unit.charAt(c) == '%')
+			if (unit.charAt(c) == '%')
 				unitOut += '%';
 		}
 		unit = unitOut;
 
 		// Concatenate it all together!
 		config += label;
-		if(!format.isEmpty() || !unit.isEmpty() || !map.isEmpty()) {
+		if (!format.isEmpty() || !unit.isEmpty() || !translationService.isEmpty() || !translationRule.isEmpty()) {
 			config += " [";
-			if (!map.isEmpty())
-				config += "MAP(" + map + "):";
-			if(!format.isEmpty())
+			if (!translationService.isEmpty() && !translationRule.isEmpty())
+				config += translationService + "(" + translationRule + "):";
+			if (!format.isEmpty())
 				config += format;
-			if(!unit.isEmpty())
+			if (!unit.isEmpty())
 				config += " " + unit;
 			config += "]";
 		}

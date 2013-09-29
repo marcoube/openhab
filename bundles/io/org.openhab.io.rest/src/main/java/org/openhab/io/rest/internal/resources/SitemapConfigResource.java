@@ -322,7 +322,7 @@ public class SitemapConfigResource {
 				if (child.item != null && !child.item.isEmpty())
 					out.write("item=" + child.item + " ");
 				if (child.label != null && !child.label.isEmpty()) {
-					LabelSplitHelper label = new LabelSplitHelper(child.label, child.format, child.units, child.map);
+					LabelSplitHelper label = new LabelSplitHelper(child.label, child.format, child.units, child.translateService, child.translateRule);
 					out.write("label=\"" + label.getLabelString() + "\" ");
 				}
 				if (child.icon != null && !child.icon.isEmpty())
@@ -440,7 +440,8 @@ public class SitemapConfigResource {
 			bean.label = label.getLabel();
 			bean.format = label.getFormat();
 			bean.units = label.getUnit();
-			bean.map = label.getMapping();
+			bean.translateService = label.getTranslationService();
+			bean.translateRule = label.getTranslationRule();
 		}
 
 		bean.type = widget.eClass().getName();
