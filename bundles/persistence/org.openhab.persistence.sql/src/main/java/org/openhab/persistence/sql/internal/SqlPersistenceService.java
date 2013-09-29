@@ -35,6 +35,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.Dictionary;
 import java.util.Enumeration;
@@ -47,8 +48,22 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
 import org.openhab.core.items.Item;
+import org.openhab.core.items.ItemNotFoundException;
 import org.openhab.core.items.ItemRegistry;
+import org.openhab.core.library.items.ColorItem;
+import org.openhab.core.library.items.ContactItem;
+import org.openhab.core.library.items.DateTimeItem;
+import org.openhab.core.library.items.DimmerItem;
+import org.openhab.core.library.items.NumberItem;
+import org.openhab.core.library.items.RollershutterItem;
+import org.openhab.core.library.items.SwitchItem;
+import org.openhab.core.library.types.DateTimeType;
 import org.openhab.core.library.types.DecimalType;
+import org.openhab.core.library.types.HSBType;
+import org.openhab.core.library.types.OnOffType;
+import org.openhab.core.library.types.OpenClosedType;
+import org.openhab.core.library.types.PercentType;
+import org.openhab.core.library.types.StringType;
 import org.openhab.core.persistence.FilterCriteria;
 import org.openhab.core.persistence.HistoricItem;
 import org.openhab.core.persistence.PersistenceService;
@@ -62,6 +77,23 @@ import org.slf4j.LoggerFactory;
 
 /**
  * This is the implementation of the SQL {@link PersistenceService}.
+ * 
+ * Data is persisted with the following conversions -:
+ * 
+ * Item-Type          Data-Type       MySQL-Type
+ * =========          =========       ==========
+ * ColorItem          HSBType         CHAR(25)
+ * ContactItem        OnOffType       CHAR(3)
+ * DateTimeItem       DateTimeType    DATETIME
+ * DimmerItem         PercentType     TINYINT
+ * NumberItem         DecimalType     DOUBLE
+ * RollershutterItem  PercentType     TINYINT
+ * StringItem         StringType      VARCHAR(50)
+ * SwitchItem         OnOffType       CHAR(3)
+ * 
+ * In the store method, type conversion is performed where the default type for an item is not as above
+ * For example, DimmerType can return OnOffType, so to keep the best resolution, we store as a number in
+ * SQL and convert to DecimalType before persisting to MySQL. 
  * 
  * @author Henrik Sjöstrand
  * @author Thomas.Eichstaedt-Engelen
@@ -81,7 +113,7 @@ public class SqlPersistenceService implements QueryablePersistenceService, Manag
 
 	private boolean initialized = false;
 	protected ItemRegistry itemRegistry;
-	
+
 	// Error counter - used to reconnect to database on error
 	private int errCnt;
 	private int errReconnectThreshold = 0;
@@ -93,13 +125,13 @@ public class SqlPersistenceService implements QueryablePersistenceService, Manag
 
 	public void activate() {
 		// Initialise the type array
-		sqlTypes.put("COLORITEM", "VARCHAR(50)");
+		sqlTypes.put("COLORITEM", "CHAR(25)");
 		sqlTypes.put("CONTACTITEM", "VARCHAR(50)");
 		sqlTypes.put("DATETIMEITEM", "DATETIME");
 		sqlTypes.put("DIMMERITEM", "DOUBLE");
 		sqlTypes.put("GROUPITEM", "VARCHAR(50)");
 		sqlTypes.put("NUMBERITEM", "DOUBLE");
-		sqlTypes.put("ROLERSHUTTERITEM", "DOUBLE");
+		sqlTypes.put("ROLERSHUTTERITEM", "TINYINT");
 		sqlTypes.put("STRINGITEM", "VARCHAR(50)");
 		sqlTypes.put("SWITCHITEM", "CHAR(15)");
 	}
@@ -128,7 +160,7 @@ public class SqlPersistenceService implements QueryablePersistenceService, Manag
 		Statement statement = null;
 		String sqlCmd = null;
 		int rowId = 0;
-		
+
 		String itemName = item.getName();
 
 		String tableName = sqlTables.get(itemName);
@@ -158,7 +190,7 @@ public class SqlPersistenceService implements QueryablePersistenceService, Manag
 			tableName = new String("Item" + rowId);
 			logger.debug("SQL: new item " + itemName + " is Item" + rowId);
 		} catch (SQLException e) {
-			logger.error("SQL: Could not create table for item '" + itemName + "': "	+ e.getMessage());
+			logger.error("SQL: Could not create table for item '" + itemName + "': " + e.getMessage());
 		} finally {
 			if (statement != null) {
 				try {
@@ -175,20 +207,22 @@ public class SqlPersistenceService implements QueryablePersistenceService, Manag
 		// Default the type to double
 		String mysqlType = new String("DOUBLE");
 		String itemType = item.getClass().toString().toUpperCase();
-		itemType = itemType.substring(itemType.lastIndexOf('.')+1);
-		if(sqlTypes.get(itemType) != null) {
+		itemType = itemType.substring(itemType.lastIndexOf('.') + 1);
+		if (sqlTypes.get(itemType) != null) {
 			mysqlType = sqlTypes.get(itemType);
 		}
 
 		// We have a rowId, create the table for the data
-		sqlCmd = new String("CREATE TABLE " + tableName + " (Time DATETIME, Value " + mysqlType + ", PRIMARY KEY(Time));");
+		sqlCmd = new String("CREATE TABLE " + tableName + " (Time DATETIME, Value " + mysqlType
+				+ ", PRIMARY KEY(Time));");
 		logger.debug("SQL: " + sqlCmd);
-		
+
 		try {
 			statement = connection.createStatement();
 			statement.executeUpdate(sqlCmd);
 
-			logger.debug("SQL: Table created for item '" + itemName + "' with datatype " + mysqlType + " in SQL database.");
+			logger.debug("SQL: Table created for item '" + itemName + "' with datatype " + mysqlType
+					+ " in SQL database.");
 			sqlTables.put(itemName, tableName);
 		} catch (Exception e) {
 			logger.error("SQL: Could not create table for item '" + itemName + "' with statement '" + sqlCmd + "': "
@@ -221,16 +255,30 @@ public class SqlPersistenceService implements QueryablePersistenceService, Manag
 					logger.error("Unable to store item '{}'.", item.getName());
 					return;
 				}
+				
+				// Do some type conversion to ensure we know the data type
+				// This is necessary for items that have multiple types and may return their
+				// state in a format that's not preferred or compatible with the MySQL type.
+				// eg. DimmerItem can return OnOffType (ON, OFF), or PercentType (0-100)
+				// We need to make sure we cover the best type for serialisation
+				String value;
+				if(item instanceof DimmerItem || item instanceof RollershutterItem)
+					value = item.getStateAs(PercentType.class).toString();
+				else if(item instanceof ColorItem)
+					value = item.getStateAs(HSBType.class).toString();
+				else // All other items should return the best format by default
+					value = item.getState().toString();
 
 				String sqlCmd = null;
 				Statement statement = null;
 				try {
 					statement = connection.createStatement();
-					sqlCmd = new String("INSERT INTO " + tableName + " (TIME, VALUE) VALUES(NOW(),'" + item.getState().toString() + "');");
+					sqlCmd = new String("INSERT INTO " + tableName + " (TIME, VALUE) VALUES(NOW(),'"
+							+ item.getState().toString() + "');");
 					statement.executeUpdate(sqlCmd);
 
-					logger.debug("SQL: Stored item '{}' as '{}'[{}] in SQL database at {}.", item.getName(),
-							item.getState().toString(), item.getState().toString(), (new java.util.Date()).toString());
+					logger.debug("SQL: Stored item '{}' as '{}'[{}] in SQL database at {}.", item.getName(), item
+							.getState().toString(), value, (new java.util.Date()).toString());
 					logger.debug("SQL: {}", sqlCmd);
 
 					// Success
@@ -238,8 +286,8 @@ public class SqlPersistenceService implements QueryablePersistenceService, Manag
 				} catch (Exception e) {
 					errCnt++;
 
-					logger.error("SQL: Could not store item '{}' in database with statement '{}': {}",
-							item.getName(), sqlCmd, e.getMessage());
+					logger.error("SQL: Could not store item '{}' in database with statement '{}': {}", item.getName(),
+							sqlCmd, e.getMessage());
 				} finally {
 					if (statement != null) {
 						try {
@@ -269,8 +317,9 @@ public class SqlPersistenceService implements QueryablePersistenceService, Manag
 	 * @return true if connection has been established, false otherwise
 	 */
 	private boolean isConnected() {
-		// Error check. If we have 'errReconnectThreshold' errors in a row, then reconnect to the database
-		if(errReconnectThreshold != 0 && errCnt > errReconnectThreshold) {
+		// Error check. If we have 'errReconnectThreshold' errors in a row, then
+		// reconnect to the database
+		if (errReconnectThreshold != 0 && errCnt > errReconnectThreshold) {
 			logger.debug("SQL: Error count exceeded " + errReconnectThreshold + ". Disconnecting database.");
 			disconnectFromDatabase();
 		}
@@ -284,7 +333,7 @@ public class SqlPersistenceService implements QueryablePersistenceService, Manag
 		try {
 			// Reset the error counter
 			errCnt = 0;
-			
+
 			logger.debug("SQL: Attempting to connect to database " + url);
 			Class.forName(driverClass).newInstance();
 			connection = DriverManager.getConnection(url, user, password);
@@ -313,8 +362,8 @@ public class SqlPersistenceService implements QueryablePersistenceService, Manag
 			rs.close();
 			st.close();
 		} catch (Exception e) {
-			logger.error("SQL: Failed connecting to the SQL database using: driverClass=" + driverClass + ", url=" + url
-					+ ", user=" + user + ", password=" + password, e);
+			logger.error("SQL: Failed connecting to the SQL database using: driverClass=" + driverClass + ", url="
+					+ url + ", user=" + user + ", password=" + password, e);
 		}
 	}
 
@@ -368,15 +417,15 @@ public class SqlPersistenceService implements QueryablePersistenceService, Manag
 				matcher.reset();
 				matcher.find();
 
-				if(!matcher.group(1).equals("sqltype"))
+				if (!matcher.group(1).equals("sqltype"))
 					continue;
 
 				String itemType = matcher.group(2).toUpperCase() + "ITEM";
 				String value = (String) config.get(key);
 
-				sqlTypes.put(itemType, value);	
+				sqlTypes.put(itemType, value);
 			}
-			
+
 			driverClass = (String) config.get("driverClass");
 			if (StringUtils.isBlank(driverClass)) {
 				throw new ConfigurationException("sql:driverClass",
@@ -413,100 +462,146 @@ public class SqlPersistenceService implements QueryablePersistenceService, Manag
 			// connection has been established ... initialization completed!
 			initialized = true;
 		}
-		
+
 	}
 
 	@Override
 	public Iterable<HistoricItem> query(FilterCriteria filter) {
-		if (initialized) {
-			if (!isConnected()) {
-				connectToDatabase();
+		if (!initialized)
+			return Collections.emptyList();
+
+		if (!isConnected())
+			connectToDatabase();
+
+		if (!isConnected())
+			return Collections.emptyList();
+
+		SimpleDateFormat mysqlDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+		// Get the item name from the filter
+		// Also get the Item object so we can determine the type
+		Item item = null;
+		String itemName = filter.getItemName();
+		try {
+			item = itemRegistry.getItem(itemName);
+		} catch (ItemNotFoundException e1) {
+			logger.error("Unable to get item type for {}", itemName);
+			
+			// Set type to null - data will be returned as StringType
+			item = null;
+		}
+
+		String table = sqlTables.get(itemName);
+		if (table == null) {
+			logger.error("SQL: Unable to find table for query '" + itemName + "'.");
+			return Collections.emptyList();
+		}
+
+		String filterString = new String();
+
+		if (filter.getBeginDate() != null) {
+			if (filterString.isEmpty())
+				filterString += " WHERE";
+			else
+				filterString += " AND";
+			filterString += " TIME>'" + mysqlDateFormat.format(filter.getBeginDate()) + "'";
+		}
+		if (filter.getEndDate() != null) {
+			if (filterString.isEmpty())
+				filterString += " WHERE";
+			else
+				filterString += " AND";
+			filterString += " TIME<'" + mysqlDateFormat.format(filter.getEndDate().getTime()) + "'";
+		}
+
+		if (filter.getOrdering() == Ordering.ASCENDING) {
+			filterString += " ORDER BY 'Time' ASC";
+		} else {
+			filterString += " ORDER BY Time DESC";
+		}
+
+		if (filter.getPageSize() != 0x7fffffff)
+			filterString += " LIMIT " + filter.getPageNumber() * filter.getPageSize() + "," + filter.getPageSize();
+
+		try {
+			long timerStart = System.currentTimeMillis();
+
+			// Retrieve the table array
+			Statement st = connection.createStatement();
+
+			String queryString = new String();
+			queryString = "SELECT Time, Value FROM " + table;
+			if (!filterString.isEmpty())
+				queryString += filterString;
+
+			logger.debug("SQL: " + queryString);
+
+			// Turn use of the cursor on.
+			st.setFetchSize(50);
+
+			ResultSet rs = st.executeQuery(queryString);
+
+			long count = 0;
+			List<HistoricItem> items = new ArrayList<HistoricItem>();
+			State state;
+			while (rs.next()) {
+				count++;
+
+				if(item instanceof NumberItem)
+					state = new DecimalType(rs.getDouble(2));
+				else if(item instanceof SwitchItem)
+					state =  OnOffType.valueOf(rs.getString(2));
+				else if(item instanceof ContactItem)
+					state =  OpenClosedType.valueOf(rs.getString(2));
+				else if(item instanceof DimmerItem)
+					state =  new PercentType(rs.getInt(2));
+				else if(item instanceof RollershutterItem)
+					state =  new PercentType(rs.getInt(2));
+				else if(item instanceof ColorItem)
+					state =  new HSBType(rs.getString(2));
+				else if(item instanceof DateTimeItem) {
+					Calendar calendar = Calendar.getInstance();
+					calendar.setTimeInMillis(rs.getTimestamp(2).getTime());
+					state =  new DateTimeType(calendar);
+				}
+				else
+					state = new StringType(rs.getString(2));
+
+				SqlItem sqlItem = new SqlItem(itemName, state, rs.getTimestamp(1));
+				items.add(sqlItem);
 			}
 
-			SimpleDateFormat mysqlDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-			if (isConnected()) {
-				String itemName = filter.getItemName();
+			rs.close();
+			st.close();
 
-				String table= sqlTables.get(itemName);
-				if (table == null) {
-					logger.error("SQL: Unable to find table for query '" + itemName + "'.");
-					return Collections.emptyList();
+			long timerStop = System.currentTimeMillis();
+			logger.debug("SQL: query returned {} rows in {}ms", count, timerStop - timerStart);
+
+			// Success
+			errCnt = 0;
+
+			return items;
+		} catch (SQLException e) {
+			errCnt++;
+			logger.error("SQL: Error running querying : " + e.getMessage());
+		}
+		return null;
+	}
+
+	private State mapToState(double value, String itemName) {
+		if (itemRegistry != null) {
+			try {
+				Item item = itemRegistry.getItem(itemName);
+				if (item instanceof SwitchItem && !(item instanceof DimmerItem)) {
+					return value == 0.0d ? OnOffType.OFF : OnOffType.ON;
+				} else if (item instanceof ContactItem) {
+					return value == 0.0d ? OpenClosedType.CLOSED : OpenClosedType.OPEN;
 				}
-
-				String filterString = new String();
-
-				if (filter.getBeginDate()!=null) {
-					if(filterString.isEmpty())
-						filterString += " WHERE";
-					else
-						filterString += " AND";
-					filterString += " TIME>'" + mysqlDateFormat.format(filter.getBeginDate()) + "'";
-				}
-				if (filter.getEndDate()!=null) {
-					if(filterString.isEmpty())
-						filterString += " WHERE";
-					else
-						filterString += " AND";
-					filterString += " TIME<'" + mysqlDateFormat.format(filter.getEndDate().getTime()) + "'";
-				}
-
-				if(filter.getOrdering()==Ordering.ASCENDING) {
-					filterString += " ORDER BY 'Time' ASC";
-				} else {
-					filterString += " ORDER BY Time DESC";
-				}
-
-				if(filter.getPageSize() != 0x7fffffff)
-					filterString += " LIMIT " + filter.getPageNumber() * filter.getPageSize() + "," + filter.getPageSize();
-				
-				try {
-					long timerStart = System.currentTimeMillis();
-
-					// Retrieve the table array
-					Statement st = connection.createStatement();
-
-					String queryString = new String();
-					queryString = "SELECT Time, Value FROM " + table;
-					if(!filterString.isEmpty())
-						queryString += filterString;
-					
-					logger.debug("SQL: "+queryString);
-
-					// Turn use of the cursor on.
-					st.setFetchSize(50);
-
-					ResultSet rs = st.executeQuery(queryString);
-
-					long count = 0;
-					double value;
-					List<HistoricItem> items = new ArrayList<HistoricItem>();
-					while (rs.next()) {
-						count++;
-
-						//TODO: Make this type specific!!!
-						value = rs.getDouble(2);
-						State v = new DecimalType(value);
-
-						SqlItem sqlItem = new SqlItem(itemName, v, rs.getTimestamp(1));
-						items.add(sqlItem);
-					}
-
-					rs.close();
-					st.close();
-
-					long timerStop = System.currentTimeMillis();
-					logger.debug("SQL: query returned {} rows in {}ms", count, timerStop - timerStart);
-					
-					// Success
-					errCnt = 0;
-
-					return items;
-				} catch (SQLException e) {
-					errCnt++;
-					logger.error("SQL: Error running querying : " + e.getMessage());
-				}
+			} catch (ItemNotFoundException e) {
+				logger.debug("Could not find item '{}' in registry", itemName);
 			}
 		}
-		return Collections.emptyList();
+		// just return a DecimalType as a fallback
+		return new DecimalType(value);
 	}
 }
