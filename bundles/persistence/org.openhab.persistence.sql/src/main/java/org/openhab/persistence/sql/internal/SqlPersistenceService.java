@@ -101,7 +101,7 @@ public class SqlPersistenceService implements QueryablePersistenceService, Manag
 		sqlTypes.put("NUMBERITEM", "DOUBLE");
 		sqlTypes.put("ROLERSHUTTERITEM", "DOUBLE");
 		sqlTypes.put("STRINGITEM", "VARCHAR(50)");
-		sqlTypes.put("SWITCHITEM", "DOUBLE");
+		sqlTypes.put("SWITCHITEM", "CHAR(15)");
 	}
 
 	public void deactivate() {
@@ -483,7 +483,7 @@ public class SqlPersistenceService implements QueryablePersistenceService, Manag
 					while (rs.next()) {
 						count++;
 
-						//TODO: Make this type specific ???
+						//TODO: Make this type specific!!!
 						value = rs.getDouble(2);
 						State v = new DecimalType(value);
 
