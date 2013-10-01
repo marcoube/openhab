@@ -56,6 +56,7 @@ import javax.ws.rs.core.UriInfo;
 import org.eclipse.emf.common.util.EList;
 import org.eclipse.emf.ecore.EObject;
 import org.openhab.io.rest.internal.RESTApplication;
+import org.openhab.io.rest.internal.resources.beans.ItemBindingBean;
 import org.openhab.io.rest.internal.resources.beans.ItemConfigBean;
 import org.openhab.io.rest.internal.resources.beans.ItemConfigListBean;
 import org.openhab.io.rest.internal.resources.beans.ItemPersistenceBean;
@@ -219,11 +220,13 @@ public class ItemConfigResource {
 			else
 				bean.type = item.getType() + "Item";
 
-			bean.bindings = new ArrayList<String>();
+			bean.bindings = new ArrayList<ItemBindingBean>();
 			EList<ModelBinding> bindingList = item.getBindings();
 			for (ModelBinding binding : bindingList) {
-				bean.bindings.add(binding.getConfiguration());
-				bean.binding = binding.getType();
+				ItemBindingBean bindingBean = new ItemBindingBean();
+				bindingBean.binding = binding.getType();
+				bindingBean.config = binding.getConfiguration();
+				bean.bindings.add(bindingBean);
 			}
 
 			bean.groups = new ArrayList<String>();
@@ -395,11 +398,10 @@ public class ItemConfigResource {
 				config += ")\t";
 		}
 
+		// Write out the binding configs
 		if (item.bindings != null) {
-			for (String binding : item.bindings) {
-				config += "\t{ " + item.binding + "=\"";
-				config += binding;
-				config += "\" }";
+			for (ItemBindingBean binding : item.bindings) {
+				config += "\t{ " + binding.binding + "=\"" + binding.config + "\" }";
 			}
 		}
 

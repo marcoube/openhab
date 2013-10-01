@@ -28,8 +28,6 @@
  */
 package org.openhab.io.rest.internal.resources.beans;
 
-import java.util.List;
-
 import javax.xml.bind.annotation.XmlRootElement;
 
 /**
@@ -40,27 +38,11 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @since 1.3.0
  *
  */
-@XmlRootElement(name="item")
-public class ItemConfigBean {
+@XmlRootElement(name="binding")
+public class ItemBindingBean {
 
-	public String model;
-	
-	public String type;
-	public String name;	
-	public String link;
+	public String binding;
+	public String config;
 
-	public String icon;
-	
-	public String label;
-	public String units;
-	public String format;
-	public String translateService;
-	public String translateRule;
-	
-	public List<String> groups;
-
-	public List<ItemPersistenceBean> persistence;
-	public List<ItemBindingBean> bindings;
-
-	public ItemConfigBean() {}
+	public ItemBindingBean() {}
 }

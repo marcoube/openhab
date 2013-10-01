@@ -112,22 +112,22 @@ import com.sun.jersey.api.json.JSONWithPadding;
 @Path(SitemapConfigResource.PATH_CONFIG)
 public class SitemapConfigResource {
 
-	private static final Logger		logger				= LoggerFactory.getLogger(SitemapConfigResource.class);
+	private static final Logger logger = LoggerFactory.getLogger(SitemapConfigResource.class);
 
-	private static final Pattern	SITEMAP_DEFINITION	= Pattern
-																.compile(".*?sitemap (.*?) label\\s*=\\s*[\"|'](.*?)[\"|']");
+	private static final Pattern SITEMAP_DEFINITION = Pattern
+			.compile(".*?sitemap (.*?) label\\s*=\\s*[\"|'](.*?)[\"|']");
 
-	protected static final String	SITEMAP_FILEEXT		= ".sitemap";
+	protected static final String SITEMAP_FILEEXT = ".sitemap";
 
-	public static final String		PATH_SITEMAPS		= "sitemaps";
+	public static final String PATH_SITEMAPS = "sitemaps";
 
 	/** The URI path to this resource */
-	public static final String		PATH_CONFIG			= "config/sitemap";
+	public static final String PATH_CONFIG = "config/sitemap";
 
 	@Context
-	UriInfo							uriInfo;
+	UriInfo uriInfo;
 	@Context
-	Broadcaster						sitemapBroadcaster;
+	Broadcaster sitemapBroadcaster;
 
 	@GET
 	@Produces({ MediaType.WILDCARD })
@@ -321,10 +321,13 @@ public class SitemapConfigResource {
 				out.write(indent + child.type + " ");
 				if (child.item != null && !child.item.isEmpty())
 					out.write("item=" + child.item + " ");
+
 				if (child.label != null && !child.label.isEmpty()) {
-					LabelSplitHelper label = new LabelSplitHelper(child.label, child.format, child.units, child.translateService, child.translateRule);
+					LabelSplitHelper label = new LabelSplitHelper(child.label, child.format, child.units,
+							child.translateService, child.translateRule);
 					out.write("label=\"" + label.getLabelString() + "\" ");
 				}
+				
 				if (child.icon != null && !child.icon.isEmpty())
 					out.write("icon=\"" + child.icon + "\" ");
 
@@ -352,10 +355,13 @@ public class SitemapConfigResource {
 						out.write("mappings=\"" + child.mappings + "\" ");
 				}
 
-				if (child.type.equals("Group") | child.type.equals("Frame")) {
-					out.write("{\r\n");
-					writeWidget(out, child.widgets, level + 1);
-					out.write(indent + "}");
+				if (child.type.equals("Group") || child.type.equals("Frame") || child.type.equals("Text")
+						|| child.type.equals("Image")) {
+					if (child.widgets != null && child.widgets.size() != 0) {
+						out.write("{\r\n");
+						writeWidget(out, child.widgets, level + 1);
+						out.write(indent + "}");
+					}
 				}
 				out.write(indent + "\r\n");
 			} catch (IOException e) {
@@ -433,10 +439,10 @@ public class SitemapConfigResource {
 			}
 		}
 		bean.icon = widget.getIcon();
-		
+
 		// Split the label into its constituent parts
-		if(widget.getLabel() != null) {
-			LabelSplitHelper label = new LabelSplitHelper(widget.getLabel()); 
+		if (widget.getLabel() != null) {
+			LabelSplitHelper label = new LabelSplitHelper(widget.getLabel());
 			bean.label = label.getLabel();
 			bean.format = label.getFormat();
 			bean.units = label.getUnit();
